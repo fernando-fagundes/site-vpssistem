@@ -1,0 +1,7 @@
+# Somente o site vai para o GitHub
+*.msi
+tokenMeta.txt
+gemini-code-*.html
+design_sistem.jfif
+logo.jpeg
+logo.png
