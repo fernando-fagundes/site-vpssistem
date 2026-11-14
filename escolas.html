@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vpssistem para Escolas | Mais famílias na visita, mais matrículas</title>
+  <meta name="description" content="Para escolas de educação infantil e ensino fundamental: atendimento por IA 24h no WhatsApp, agendamento de visitas, retomada de famílias e anúncios com retorno medido.">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- AOS (Animate On Scroll) CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Typed.js -->
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          borderRadius: { sm: '4px', DEFAULT: '8px', md: '8px', lg: '8px', xl: '12px', '2xl': '18px', '3xl': '18px' },
+          colors: {
+            // Neutros (grafite azulado do design system)
+            slate: { 50:'#f6f7f9',100:'#eceef2',200:'#dadde4',300:'#c3c8d1',400:'#a0a6b2',500:'#7b818d',600:'#5a606b',700:'#40454f',800:'#2c3039',900:'#1f222a',950:'#15171d' },
+            // Acento principal: azul-aço com brilho
+            cyan:   { 50:'#eef3fb',100:'#dce6f6',200:'#bfd0ee',300:'#a3bbe6',400:'#8faadc',500:'#6c8bc6',600:'#52709f',700:'#40587f',800:'#334564',900:'#28364d',950:'#1a2333' },
+            teal:   { 200:'#cfdcf2',300:'#b4c8ec',400:'#9bb4e2' },
+            indigo: { 500:'#52709f',600:'#40587f' },
+            // Acento secundário: âmbar/champagne (foco, destaque)
+            purple: { 50:'#fbf6ec',100:'#f6ead3',200:'#efd8ad',300:'#ebcd95',400:'#e5bf7c',500:'#d6a75c',600:'#b78a45',700:'#8f6a35',800:'#6b4f28',900:'#4a371c',950:'#2c200f' },
+            // Sucesso: verde sálvia suave
+            emerald:{ 50:'#eef7f1',100:'#d7ede0',200:'#b3dcc3',300:'#95cda9',400:'#86c39c',500:'#5fa87c',600:'#4b8a64',700:'#3b6d4f',800:'#2d533d',900:'#203b2c' },
+            brand: { purple:'#e5bf7c', cyan:'#8faadc', neon:'#a3bbe6', navy:'#15171d' }
+          },
+          boxShadow: {
+            sm:  '0 1px 2px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05)',
+            lg:  '0 6px 16px -4px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06)',
+            xl:  '0 14px 32px -8px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06)',
+            '2xl':'0 24px 56px -12px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.07)'
+          }
+        }
+      }
+    }
+
+    // =======================================================
+    // CONFIGURAÇÃO (preencher antes do deploy)
+    // WHATSAPP_NUMERO: DDI + DDD + número, só dígitos
+    // META_PIXEL_ID / GA4_ID: deixe "" para não carregar
+    // =======================================================
+    const WHATSAPP_NUMERO = "555121609838";
+    const META_PIXEL_ID = "";
+    const GA4_ID = "";
+
+    // ---------- Meta Pixel ----------
+    if (META_PIXEL_ID) {
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+      document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', META_PIXEL_ID);
+      fbq('track', 'PageView');
+    }
+
+    // ---------- Google tag (GA4) ----------
+    if (GA4_ID) {
+      const g = document.createElement('script');
+      g.async = true;
+      g.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA4_ID;
+      document.head.appendChild(g);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function(){ dataLayer.push(arguments); };
+      gtag('js', new Date());
+      gtag('config', GA4_ID);
+    }
+
+    // ---------- Captura de UTM / GCLID ----------
+    // Guarda a origem da primeira visita por 30 dias e a envia na mensagem do WhatsApp.
+    const TRACK_KEYS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid'];
+    const TRACK_STORAGE = 'vps_origem';
+    const TRACK_TTL = 30 * 24 * 60 * 60 * 1000;
+
+    function lerOrigem() {
+      try {
+        const salvo = JSON.parse(localStorage.getItem(TRACK_STORAGE) || 'null');
+        if (salvo && Date.now() - salvo.ts < TRACK_TTL) return salvo.dados;
+      } catch (e) {}
+      return null;
+    }
+
+    (function capturarOrigem() {
+      const params = new URLSearchParams(window.location.search);
+      const dados = {};
+      TRACK_KEYS.forEach(k => { const v = params.get(k); if (v) dados[k] = v.slice(0, 150); });
+      if (!Object.keys(dados).length) return;
+      try { localStorage.setItem(TRACK_STORAGE, JSON.stringify({ ts: Date.now(), dados })); } catch (e) {}
+      window.__vpsOrigem = dados;
+    })();
+
+    function linhaOrigem() {
+      const d = window.__vpsOrigem || lerOrigem();
+      if (!d) return '';
+      const partes = [];
+      if (d.utm_source) partes.push('origem: ' + d.utm_source);
+      if (d.utm_medium) partes.push('mídia: ' + d.utm_medium);
+      if (d.utm_campaign) partes.push('campanha: ' + d.utm_campaign);
+      if (d.utm_term) partes.push('termo: ' + d.utm_term);
+      if (d.utm_content) partes.push('anúncio: ' + d.utm_content);
+      if (d.gclid) partes.push('gclid: ' + d.gclid);
+      if (d.fbclid) partes.push('fbclid: ' + d.fbclid);
+      return partes.length ? '\n\n[Ref. ' + partes.join(' | ') + ']' : '';
+    }
+
+    function irParaWhatsApp(motivo = "") {
+      let texto = "Olá! Vim pelo site da vpssistem e quero conhecer as soluções de captação e inteligência comercial.";
+      if (motivo) {
+        texto = `Olá! Vim pelo site da vpssistem. ${motivo}`;
+      }
+      texto += linhaOrigem();
+
+      // Eventos de conversão
+      try { if (window.fbq) fbq('track', 'Contact', { content_name: motivo || 'geral' }); } catch (e) {}
+      try { if (window.gtag) gtag('event', 'generate_lead', { method: 'whatsapp', lead_source: motivo || 'geral' }); } catch (e) {}
+
+      const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`;
+      window.open(url, '_blank');
+    }
+  </script>
+
+  <style>
+    /* ===== vpssistem Design System ===== */
+    :root{
+      --ds-bg:#15171d; --ds-surface:#1f222a; --ds-surface-2:#2c3039;
+      --ds-steel:#6c8bc6; --ds-steel-hi:#8faadc; --ds-steel-lo:#40587f;
+      --ds-amber:#e5bf7c; --ds-text:#eceef2; --ds-muted:#a0a6b2;
+      --ds-b-subtle:.5px; --ds-b:1px; --ds-b-strong:1.5px;
+      --ds-sh-1:0 1px 2px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.25);
+      --ds-sh-2:0 8px 20px -6px rgba(0,0,0,.55), 0 2px 4px rgba(0,0,0,.3);
+      --ds-sh-3:0 24px 56px -12px rgba(0,0,0,.7), 0 6px 14px rgba(0,0,0,.35);
+      --ds-inner:inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(0,0,0,.35);
+    }
+    html{background:var(--ds-bg)}
+    body{
+      background:
+        radial-gradient(900px 520px at 88% -8%, rgba(229,191,124,.09), transparent 60%),
+        radial-gradient(800px 600px at 5% 30%, rgba(108,139,198,.07), transparent 60%),
+        var(--ds-bg);
+      background-attachment: fixed;
+    }
+    section{background-color:transparent !important; background-image:none !important}
+    section:nth-of-type(even){background:linear-gradient(180deg, rgba(31,34,42,.55), rgba(21,23,29,.2)) !important}
+    header.sticky{background:rgba(21,23,29,.78) !important; border-color:rgba(255,255,255,.06) !important}
+
+    /* Cards: elevação com sombra interna + externa */
+    .ds-card{
+      position:relative;
+      background:linear-gradient(180deg, #2a2e37 0%, #22252d 100%) !important;
+      border:var(--ds-b) solid rgba(255,255,255,.07) !important;
+      border-radius:18px !important;
+      box-shadow:var(--ds-inner), var(--ds-sh-2) !important;
+      transition:box-shadow .3s ease, transform .3s ease, border-color .3s ease;
+    }
+    .ds-card:hover{ box-shadow:var(--ds-inner), var(--ds-sh-3) !important; transform:translateY(-2px); }
+    .ds-card--steel{
+      background:linear-gradient(180deg, #3a4a68 0%, #2b3650 100%) !important;
+      border-color:rgba(163,187,230,.18) !important;
+      box-shadow:var(--ds-inner), var(--ds-sh-2), 0 0 0 6px rgba(255,255,255,.025) !important;
+    }
+    .ds-card--warm{
+      background:linear-gradient(180deg, #45433f 0%, #35342f 100%) !important;
+      border-color:rgba(229,191,124,.16) !important;
+      box-shadow:var(--ds-inner), var(--ds-sh-2), 0 0 0 6px rgba(255,255,255,.025) !important;
+    }
+    .ds-card--featured{
+      border:var(--ds-b-strong) solid rgba(229,191,124,.55) !important;
+      box-shadow:var(--ds-inner), var(--ds-sh-3), 0 0 32px -6px rgba(229,191,124,.28) !important;
+    }
+    .ds-card--muted{ opacity:.92; background:linear-gradient(180deg,#24272e,#1d2026) !important; }
+
+    /* Botões */
+    .ds-btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:.6rem;
+      border-radius:9999px !important;
+      color:#f4f6fa !important; font-weight:700; letter-spacing:.01em;
+      background:linear-gradient(180deg, #5f7fb6 0%, #435f92 100%) !important;
+      border:var(--ds-b-strong) solid rgba(229,191,124,.55) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 0 -2px 5px rgba(0,0,0,.25),
+                  0 8px 22px -6px rgba(0,0,0,.6), 0 0 18px -4px rgba(229,191,124,.35) !important;
+      transition:background .25s ease, box-shadow .25s ease, transform .12s ease;
+    }
+    .ds-btn:hover{
+      background:linear-gradient(180deg, #7b9ad3 0%, #5877b0 100%) !important;
+      border-color:rgba(191,208,238,.8) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 26px -6px rgba(0,0,0,.6),
+                  0 0 26px 0 rgba(143,170,220,.55) !important;
+    }
+    .ds-btn:active{
+      transform:translateY(1px);
+      background:linear-gradient(180deg, #3f5a8a 0%, #33496f 100%) !important;
+      border-color:rgba(143,170,220,.35) !important;
+      box-shadow: inset 0 3px 8px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.4) !important;
+    }
+    .ds-btn:focus-visible, .ds-btn-ghost:focus-visible{ outline:none; box-shadow:0 0 0 2px var(--ds-bg), 0 0 0 4px rgba(236,240,248,.85), 0 0 22px rgba(143,170,220,.6) !important; }
+    .ds-btn-ghost{
+      display:inline-flex; align-items:center; justify-content:center; gap:.6rem;
+      border-radius:9999px !important; color:#dadde4 !important; font-weight:700;
+      background:linear-gradient(180deg, #4a4b50 0%, #3a3b40 100%) !important;
+      border:var(--ds-b) solid rgba(255,255,255,.1) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.25), var(--ds-sh-1) !important;
+      transition:all .25s ease;
+    }
+    .ds-btn-ghost:hover{ color:#fff !important; background:linear-gradient(180deg,#56575d,#45464c) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.16), var(--ds-sh-2), 0 0 18px -4px rgba(143,170,220,.4) !important; }
+    .ds-btn--wa{ background:linear-gradient(180deg,#5aa97f,#3f8763) !important; border-color:rgba(236,240,248,.35) !important; }
+    .ds-btn--wa:hover{ background:linear-gradient(180deg,#6dbb91,#4a9670) !important; box-shadow:0 10px 26px -6px rgba(0,0,0,.6), 0 0 26px rgba(109,187,145,.55) !important; }
+
+    /* Chips / badges */
+    .ds-chip{ border-radius:9999px !important; border-width:var(--ds-b-subtle) !important; box-shadow:var(--ds-inner); }
+
+    /* Ícones em cards */
+    .ds-icon{ border-radius:12px !important; background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.03)) !important; box-shadow:var(--ds-inner), var(--ds-sh-1); border:var(--ds-b-subtle) solid rgba(255,255,255,.12); }
+
+    /* Slider */
+    input[type=range].ds-range{ -webkit-appearance:none; appearance:none; height:8px; border-radius:9999px; background:linear-gradient(90deg, var(--ds-steel-hi) 0%, var(--ds-steel) var(--fill,50%), #2c3039 var(--fill,50%)) !important; box-shadow: inset 0 1px 3px rgba(0,0,0,.6), 0 0 14px -2px rgba(143,170,220,.35); outline:none; }
+    input[type=range].ds-range::-webkit-slider-thumb{ -webkit-appearance:none; width:16px; height:28px; border-radius:8px; background:linear-gradient(180deg,#f3dcae,#d6a75c); border:1px solid rgba(255,255,255,.5); box-shadow:0 0 14px rgba(229,191,124,.7), 0 3px 6px rgba(0,0,0,.5); cursor:grab; }
+    input[type=range].ds-range::-moz-range-thumb{ width:16px; height:28px; border-radius:8px; background:linear-gradient(180deg,#f3dcae,#d6a75c); border:1px solid rgba(255,255,255,.5); box-shadow:0 0 14px rgba(229,191,124,.7), 0 3px 6px rgba(0,0,0,.5); cursor:grab; }
+    input[type=range].ds-range:focus-visible::-webkit-slider-thumb{ box-shadow:0 0 0 3px rgba(236,240,248,.85), 0 0 18px rgba(229,191,124,.9); }
+
+    /* FAQ */
+    .ds-faq[data-open="1"]{ border-color:rgba(143,170,220,.35) !important; box-shadow:var(--ds-inner), var(--ds-sh-2), 0 0 0 1.5px rgba(143,170,220,.25), 0 0 22px -6px rgba(143,170,220,.4) !important; }
+
+    ::selection{ background:rgba(229,191,124,.45); color:#fff; }
+    @media (prefers-reduced-motion: reduce){ .ds-card,.ds-btn,.ds-btn-ghost{ transition:none } .ds-card:hover{ transform:none } }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-cyan-500 selection:text-slate-950">
+
+  <!-- ==================== HEADER ==================== -->
+  <header class="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <a href="index.html" class="flex items-center space-x-3">
+        <div class="bg-white/95 px-3 py-1.5 rounded-xl flex items-center shadow-sm">
+          <img src="logo1.png" alt="vpssistem logo" class="h-8 sm:h-9 w-auto object-contain">
+        </div>
+      </a>
+      <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-300">
+        <a href="#onde-escapa" class="hover:text-cyan-400 transition">Onde a matrícula escapa</a>
+        <a href="#simulador" class="hover:text-cyan-400 transition">Simulador</a>
+        <a href="#jornada" class="hover:text-cyan-400 transition">Como funciona</a>
+        <a href="#estrutura" class="hover:text-cyan-400 transition">O que a escola recebe</a>
+        <a href="#faq" class="hover:text-cyan-400 transition">Dúvidas</a>
+      </nav>
+      <div>
+        <button onclick="irParaWhatsApp('[Escolas] Quero agendar o diagnóstico gratuito para a minha escola.')" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold transition ds-btn">
+          <i data-lucide="calendar" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Diagnóstico gratuito</span><span class="sm:hidden">Diagnóstico</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== HERO ==================== -->
+  <section class="relative pt-20 pb-24 overflow-hidden">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <span class="inline-block px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-purple-300 border border-purple-400/40 ds-chip">Para escolas de educação infantil e ensino fundamental</span>
+      <h1 class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight">
+        Sua escola recebe famílias interessadas.<br class="hidden sm:block">
+        <span class="text-purple-400">Quantas chegam à visita?</span>
+      </h1>
+      <p class="mt-6 text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed">
+        A vpssistem responde cada família em segundos, a qualquer hora, agenda a visita na agenda da escola e retoma quem parou de responder. E mostra qual anúncio trouxe cada matrícula.
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <button onclick="irParaWhatsApp('[Escolas] Quero agendar o diagnóstico gratuito para a minha escola.')" class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-base font-bold transition gap-3 ds-btn">
+          <i data-lucide="calendar" class="w-5 h-5"></i>
+          Agendar diagnóstico gratuito
+        </button>
+        <button onclick="irParaWhatsApp('[Escolas] Oi! Quero testar o atendimento como se fosse uma família procurando vaga.')" class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-base font-bold transition gap-3 ds-btn-ghost">
+          <i data-lucide="message-circle" class="w-5 h-5 text-emerald-400"></i>
+          Testar como uma família
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ONDE A MATRÍCULA ESCAPA ==================== -->
+  <section id="onde-escapa" class="py-24 border-t border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-14" data-aos="fade-up">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-2">Onde a matrícula escapa</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">4 pontos em que a escola perde famílias sem perceber</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div data-aos="fade-up" class="p-7 ds-card">
+          <span class="text-xs font-mono text-rose-400 border border-rose-400/40 rounded px-2 py-0.5">01</span>
+          <h3 class="mt-4 text-lg font-bold text-white">Resposta demorada, dentro e fora do horário</h3>
+          <p class="mt-2 text-sm text-slate-300 leading-relaxed">No expediente, a secretaria está ocupada. À noite e no fim de semana, a mãe só recebe resposta no próximo dia útil. Nesse tempo, ela já falou com outras escolas.</p>
+        </div>
+        <div data-aos="fade-up" data-aos-delay="100" class="p-7 ds-card">
+          <span class="text-xs font-mono text-rose-400 border border-rose-400/40 rounded px-2 py-0.5">02</span>
+          <h3 class="mt-4 text-lg font-bold text-white">Ninguém retoma quem pediu o valor</h3>
+          <p class="mt-2 text-sm text-slate-300 leading-relaxed">A família pergunta a mensalidade e para de responder. Ninguém volta a chamar. A matrícula morre por esquecimento, não por um “não”.</p>
+        </div>
+        <div data-aos="fade-up" class="p-7 ds-card">
+          <span class="text-xs font-mono text-rose-400 border border-rose-400/40 rounded px-2 py-0.5">03</span>
+          <h3 class="mt-4 text-lg font-bold text-white">Novas famílias misturadas no WhatsApp</h3>
+          <p class="mt-2 text-sm text-slate-300 leading-relaxed">Os interessados chegam no meio das conversas com pais de alunos. Não há registro de quantos chegaram, quem visitou e quem precisa de retorno.</p>
+        </div>
+        <div data-aos="fade-up" data-aos-delay="100" class="p-7 ds-card">
+          <span class="text-xs font-mono text-rose-400 border border-rose-400/40 rounded px-2 py-0.5">04</span>
+          <h3 class="mt-4 text-lg font-bold text-white">Anúncio sem saber o que vira matrícula</h3>
+          <p class="mt-2 text-sm text-slate-300 leading-relaxed">O Instagram traz contatos, mas ninguém sabe qual anúncio trouxe as famílias que se matricularam. A verba segue sem direção.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SIMULADOR ==================== -->
+  <section id="simulador" class="py-24 border-t border-slate-800">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-14" data-aos="fade-up">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-2">Simulador</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Quanto vale cada família que não chega à visita?</p>
+        <p class="text-slate-400 text-sm mt-3">Um aluno não é uma venda única: ele paga mensalidade por anos. Ajuste com os números da sua escola.</p>
+      </div>
+      <div data-aos="zoom-in" class="p-8 sm:p-10 ds-card">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div class="space-y-7">
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label for="mens-input" class="text-sm font-semibold text-slate-300">Mensalidade escolar</label>
+                <span id="mens-val" class="text-base font-bold text-purple-400 font-mono">R$ 2.000</span>
+              </div>
+              <input type="range" id="mens-input" min="500" max="8000" step="100" value="2000" class="w-full ds-range cursor-pointer">
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label for="fam-input" class="text-sm font-semibold text-slate-300">Famílias perdidas por mês</label>
+                <span id="fam-val" class="text-base font-bold text-cyan-400 font-mono">2</span>
+              </div>
+              <input type="range" id="fam-input" min="1" max="10" step="1" value="2" class="w-full ds-range cursor-pointer">
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label for="anos-input" class="text-sm font-semibold text-slate-300">Anos que o aluno fica na escola</label>
+                <span id="anos-val" class="text-base font-bold text-cyan-400 font-mono">5 anos</span>
+              </div>
+              <input type="range" id="anos-input" min="1" max="10" step="1" value="5" class="w-full ds-range cursor-pointer">
+            </div>
+            <p class="pt-4 border-t border-slate-800/80 text-xs text-slate-400 leading-relaxed">Simulação com 12 mensalidades por ano. Não é promessa: é a conta do que fica na mesa quando a família não chega à visita.</p>
+          </div>
+          <div class="p-6 flex flex-col justify-between gap-6 ds-card ds-card--steel">
+            <div class="space-y-4">
+              <div>
+                <span class="text-xs font-bold uppercase tracking-wider text-rose-300 block">Receita que deixa de entrar por ano</span>
+                <div id="perda-ano" class="text-4xl sm:text-5xl font-black text-rose-400 font-mono tracking-tight my-1">R$ 576.000</div>
+                <p class="text-xs text-slate-300">Com as famílias perdidas em 12 meses, a partir do 2º ano.</p>
+              </div>
+              <div class="pt-4 border-t border-white/10">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-300 block">No tempo em que esses alunos ficariam</span>
+                <div id="perda-total" class="text-2xl font-black text-white font-mono">R$ 2.880.000</div>
+              </div>
+            </div>
+            <button onclick="enviarSimulacaoEscola()" class="w-full inline-flex items-center justify-center gap-2 py-3.5 font-bold text-sm transition ds-btn">
+              <i data-lucide="message-circle" class="w-4 h-4"></i>
+              Quero recuperar essas matrículas
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== JORNADA ==================== -->
+  <section id="jornada" class="py-24 border-t border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-14" data-aos="fade-up">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-2">Como funciona</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Da mensagem no sábado à matrícula</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div data-aos="fade-up" class="p-6 ds-card"><p class="text-xs font-mono text-cyan-400">1 · Sábado, 21h</p><p class="mt-2 text-sm text-slate-200 leading-relaxed">A mãe vê o anúncio da escola e chama no WhatsApp perguntando sobre vagas.</p></div>
+        <div data-aos="fade-up" data-aos-delay="100" class="p-6 ds-card"><p class="text-xs font-mono text-cyan-400">2 · Em segundos</p><p class="mt-2 text-sm text-slate-200 leading-relaxed">A IA responde em nome da escola, pergunta a idade da criança, a série e o turno, e apresenta a proposta pedagógica.</p></div>
+        <div data-aos="fade-up" data-aos-delay="200" class="p-6 ds-card ds-card--featured"><p class="text-xs font-mono text-purple-400">3 · Na mesma conversa</p><p class="mt-2 text-sm text-slate-200 leading-relaxed">Oferece dois horários e agenda a visita direto na agenda da escola.</p></div>
+        <div data-aos="fade-up" class="p-6 ds-card"><p class="text-xs font-mono text-cyan-400">4 · Véspera da visita</p><p class="mt-2 text-sm text-slate-200 leading-relaxed">Lembrete automático para a família confirmar presença.</p></div>
+        <div data-aos="fade-up" data-aos-delay="100" class="p-6 ds-card"><p class="text-xs font-mono text-cyan-400">5 · Se a família some</p><p class="mt-2 text-sm text-slate-200 leading-relaxed">O follow-up retoma a conversa no tempo certo, sem a secretaria precisar lembrar.</p></div>
+        <div data-aos="fade-up" data-aos-delay="200" class="p-6 ds-card"><p class="text-xs font-mono text-cyan-400">6 · Na visita</p><p class="mt-2 text-sm text-slate-200 leading-relaxed">A equipe recebe a família e fecha a matrícula. O sistema registra de qual anúncio ela veio.</p></div>
+      </div>
+      <p class="mt-8 text-center text-sm text-slate-400">A equipe vê todas as conversas e assume qualquer uma na hora. Quando a família pede uma pessoa, a conversa passa para a secretaria.</p>
+    </div>
+  </section>
+
+  <!-- ==================== O QUE A ESCOLA RECEBE ==================== -->
+  <section id="estrutura" class="py-24 border-t border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-14" data-aos="fade-up">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-2">O que a escola recebe</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Uma resposta para cada ponto de perda</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div data-aos="fade-up" class="p-7 flex gap-5 ds-card"><div class="w-12 h-12 shrink-0 flex items-center justify-center ds-icon"><i data-lucide="bot" class="w-6 h-6 text-cyan-300"></i></div><div><h3 class="text-lg font-bold text-white">IA de atendimento 24h</h3><p class="mt-1 text-sm text-slate-300">Responde em segundos, apresenta a escola e agenda a visita. Treinada com as regras, séries, turnos e tom da sua escola.</p></div></div>
+        <div data-aos="fade-up" data-aos-delay="100" class="p-7 flex gap-5 ds-card"><div class="w-12 h-12 shrink-0 flex items-center justify-center ds-icon"><i data-lucide="refresh-cw" class="w-6 h-6 text-cyan-300"></i></div><div><h3 class="text-lg font-bold text-white">Retomada automática</h3><p class="mt-1 text-sm text-slate-300">Volta a chamar a família que pediu informação e parou de responder, no tempo certo.</p></div></div>
+        <div data-aos="fade-up" class="p-7 flex gap-5 ds-card"><div class="w-12 h-12 shrink-0 flex items-center justify-center ds-icon"><i data-lucide="users" class="w-6 h-6 text-cyan-300"></i></div><div><h3 class="text-lg font-bold text-white">Central da secretaria</h3><p class="mt-1 text-sm text-slate-300">Toda a equipe num número só. Cada família nova numa etapa: contato, visita agendada, matrícula.</p></div></div>
+        <div data-aos="fade-up" data-aos-delay="100" class="p-7 flex gap-5 ds-card"><div class="w-12 h-12 shrink-0 flex items-center justify-center ds-icon"><i data-lucide="bar-chart-3" class="w-6 h-6 text-cyan-300"></i></div><div><h3 class="text-lg font-bold text-white">Anúncios com retorno medido</h3><p class="mt-1 text-sm text-slate-300">Campanhas no Google para quem procura escola na região e rastreio de qual anúncio virou matrícula.</p></div></div>
+      </div>
+      <div data-aos="fade-up" class="mt-12 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 ds-card ds-card--steel">
+        <div class="text-center md:text-left">
+          <p class="text-lg font-bold text-white">Diagnóstico gratuito de 20 minutos</p>
+          <p class="text-sm text-slate-300 mt-1">Mostramos onde sua escola perde famílias hoje, quanto isso custa e como resolver. Você sai com a proposta e o valor exato. Projetos a partir de R$ 950/mês.</p>
+        </div>
+        <button onclick="irParaWhatsApp('[Escolas] Quero agendar o diagnóstico gratuito para a minha escola.')" class="w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold transition ds-btn">
+          <i data-lucide="calendar" class="w-4 h-4"></i>
+          Agendar diagnóstico
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PARA QUEM É ==================== -->
+  <section class="py-24 border-t border-slate-800">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12" data-aos="fade-up">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-2">Para quem é</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Feito para escolas particulares que querem encher as turmas</p>
+      </div>
+      <ul class="space-y-4 text-slate-200">
+        <li class="flex gap-3 items-start"><i data-lucide="check" class="w-5 h-5 mt-0.5 text-emerald-400 shrink-0"></i><span><strong>Educação infantil e ensino fundamental</strong>, em que a visita à escola decide a matrícula.</span></li>
+        <li class="flex gap-3 items-start"><i data-lucide="check" class="w-5 h-5 mt-0.5 text-emerald-400 shrink-0"></i><span><strong>Recebe famílias pelo WhatsApp</strong>, pelo Instagram, pelo Google ou por indicação.</span></li>
+        <li class="flex gap-3 items-start"><i data-lucide="check" class="w-5 h-5 mt-0.5 text-emerald-400 shrink-0"></i><span><strong>A secretaria não dá conta</strong> de responder rápido e acompanhar cada interessado, principalmente na época de matrículas.</span></li>
+        <li class="flex gap-3 items-start"><i data-lucide="check" class="w-5 h-5 mt-0.5 text-emerald-400 shrink-0"></i><span><strong>Quer saber de onde vêm as matrículas</strong> para investir no que funciona.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ==================== FAQ ==================== -->
+  <section id="faq" class="py-24 border-t border-slate-800">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12" data-aos="fade-up">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-2">Dúvidas</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">O que as escolas costumam perguntar</p>
+      </div>
+      <div class="space-y-4">
+        <div class="ds-card overflow-hidden"><button onclick="toggleFaq(this)" class="w-full px-6 py-5 flex justify-between items-center text-left font-semibold text-white">Os pais não vão estranhar falar com uma IA?<i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i></button><div class="hidden px-6 pb-5 text-sm text-slate-300 leading-relaxed">A IA responde com o tom da escola, de forma cordial e objetiva, e se apresenta como assistente da escola. Quando a família pede para falar com uma pessoa, ou o assunto pede a equipe, a conversa passa na hora para a secretaria.</div></div>
+        <div class="ds-card overflow-hidden"><button onclick="toggleFaq(this)" class="w-full px-6 py-5 flex justify-between items-center text-left font-semibold text-white">A IA vai passar informação errada sobre a escola?<i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i></button><div class="hidden px-6 pb-5 text-sm text-slate-300 leading-relaxed">Ela é treinada só com as informações que a escola aprova: séries, turnos, proposta pedagógica, horários de visita e o que pode ou não ser dito sobre valores. O que ela não souber, ela passa para a equipe.</div></div>
+        <div class="ds-card overflow-hidden"><button onclick="toggleFaq(this)" class="w-full px-6 py-5 flex justify-between items-center text-left font-semibold text-white">Usa o mesmo número de WhatsApp da escola?<i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i></button><div class="hidden px-6 pb-5 text-sm text-slate-300 leading-relaxed">Sim. A escola continua com o número que as famílias já conhecem, e toda a equipe atende por ele num painel único.</div></div>
+        <div class="ds-card overflow-hidden"><button onclick="toggleFaq(this)" class="w-full px-6 py-5 flex justify-between items-center text-left font-semibold text-white">Quanto tempo leva para começar?<i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i></button><div class="hidden px-6 pb-5 text-sm text-slate-300 leading-relaxed">A implantação leva 7 dias úteis depois da aprovação e da entrega dos acessos, com treinamento da equipe incluso.</div></div>
+        <div class="ds-card overflow-hidden"><button onclick="toggleFaq(this)" class="w-full px-6 py-5 flex justify-between items-center text-left font-semibold text-white">E os dados das famílias?<i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i></button><div class="hidden px-6 pb-5 text-sm text-slate-300 leading-relaxed">Os dados ficam no ambiente da escola e são usados só para o atendimento, de acordo com a LGPD. Veja nossa <a href="privacidade.html" class="underline">Política de Privacidade</a>.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CTA FINAL ==================== -->
+  <section class="py-24 border-t border-slate-800 text-center">
+    <div class="max-w-3xl mx-auto px-4">
+      <p class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Veja como sua escola seria atendida</p>
+      <p class="mt-4 text-slate-300">Mande uma mensagem como se fosse uma família procurando vaga e veja a IA responder em segundos.</p>
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <button onclick="irParaWhatsApp('[Escolas] Oi! Quero testar o atendimento como se fosse uma família procurando vaga.')" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 font-bold transition ds-btn">
+          <i data-lucide="message-circle" class="w-5 h-5"></i>
+          Testar como uma família
+        </button>
+        <button onclick="irParaWhatsApp('[Escolas] Quero agendar o diagnóstico gratuito para a minha escola.')" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 font-bold transition ds-btn-ghost">
+          <i data-lucide="calendar" class="w-5 h-5 text-emerald-400"></i>
+          Agendar diagnóstico
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-slate-950 py-10 text-xs border-t border-slate-900 text-center text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-white/90 px-2.5 py-1 rounded-lg"><img src="logo1.png" alt="vpssistem logo" class="h-6 w-auto object-contain"></div>
+        <span>© 2026 vpssistem inteligência comercial.</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="underline hover:text-slate-300">Site principal</a>
+        <a href="privacidade.html" class="underline hover:text-slate-300">Política de Privacidade</a>
+      </div>
+    </div>
+  </footer>
+
+  <div class="fixed bottom-6 right-6 z-50">
+    <button onclick="irParaWhatsApp('[Escolas] Estou no site e quero tirar uma dúvida.')" class="group flex items-center gap-3 font-bold px-4 py-3 transition-all hover:scale-105 ds-btn ds-btn--wa" aria-label="Falar no WhatsApp">
+      <i data-lucide="message-circle" class="w-6 h-6"></i>
+      <span class="hidden sm:inline text-xs font-extrabold uppercase tracking-wide">Fale com a gente</span>
+    </button>
+  </div>
+
+  <script>lucide.createIcons();</script>
+  <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 800, once: true, easing: 'ease-out-cubic' });
+
+    const mensIn = document.getElementById('mens-input');
+    const famIn = document.getElementById('fam-input');
+    const anosIn = document.getElementById('anos-input');
+    const brl = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+
+    function calcEscola() {
+      const m = +mensIn.value, f = +famIn.value, a = +anosIn.value;
+      document.getElementById('mens-val').textContent = brl(m);
+      document.getElementById('fam-val').textContent = f;
+      document.getElementById('anos-val').textContent = a + (a === 1 ? ' ano' : ' anos');
+      const alunos = f * 12;
+      document.getElementById('perda-ano').textContent = brl(alunos * m * 12);
+      document.getElementById('perda-total').textContent = brl(alunos * m * 12 * a);
+    }
+    function enviarSimulacaoEscola() {
+      const msg = `[Escolas] Fiz a simulação no site: mensalidade de ${document.getElementById('mens-val').textContent}, ${famIn.value} família(s) perdida(s) por mês. A perda deu ${document.getElementById('perda-ano').textContent} por ano. Quero o diagnóstico gratuito.`;
+      irParaWhatsApp(msg);
+    }
+    function paintRange(el){ const p=(el.value-el.min)/(el.max-el.min)*100; el.style.setProperty('--fill', p+'%'); }
+    [mensIn, famIn, anosIn].forEach(el => { paintRange(el); el.addEventListener('input', () => { paintRange(el); calcEscola(); }); });
+    calcEscola();
+
+    function toggleFaq(button) {
+      const content = button.nextElementSibling;
+      const icon = button.querySelector('i, svg');
+      const isOpen = !content.classList.contains('hidden');
+      button.parentElement.dataset.open = isOpen ? '0' : '1';
+      content.classList.toggle('hidden', isOpen);
+      if (icon) icon.classList.toggle('rotate-180', !isOpen);
+    }
+  </script>
+</body>
+</html>
