@@ -53,16 +53,85 @@
     }
 
     // =======================================================
-    // CONFIGURAÇÃO DO SEU NÚMERO DE WHATSAPP
-    // Substitua pelo seu número com DDI e DDD (somente números)
+    // CONFIGURAÇÃO (preencher antes do deploy)
+    // WHATSAPP_NUMERO: DDI + DDD + número, só dígitos
+    // META_PIXEL_ID / GA4_ID: deixe "" para não carregar
     // =======================================================
-    const WHATSAPP_NUMERO = "555121609838"; 
+    const WHATSAPP_NUMERO = "555121609838";
+    const META_PIXEL_ID = "";
+    const GA4_ID = "";
+
+    // ---------- Meta Pixel ----------
+    if (META_PIXEL_ID) {
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+      document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', META_PIXEL_ID);
+      fbq('track', 'PageView');
+    }
+
+    // ---------- Google tag (GA4) ----------
+    if (GA4_ID) {
+      const g = document.createElement('script');
+      g.async = true;
+      g.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA4_ID;
+      document.head.appendChild(g);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function(){ dataLayer.push(arguments); };
+      gtag('js', new Date());
+      gtag('config', GA4_ID);
+    }
+
+    // ---------- Captura de UTM / GCLID ----------
+    // Guarda a origem da primeira visita por 30 dias e a envia na mensagem do WhatsApp.
+    const TRACK_KEYS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid'];
+    const TRACK_STORAGE = 'vps_origem';
+    const TRACK_TTL = 30 * 24 * 60 * 60 * 1000;
+
+    function lerOrigem() {
+      try {
+        const salvo = JSON.parse(localStorage.getItem(TRACK_STORAGE) || 'null');
+        if (salvo && Date.now() - salvo.ts < TRACK_TTL) return salvo.dados;
+      } catch (e) {}
+      return null;
+    }
+
+    (function capturarOrigem() {
+      const params = new URLSearchParams(window.location.search);
+      const dados = {};
+      TRACK_KEYS.forEach(k => { const v = params.get(k); if (v) dados[k] = v.slice(0, 150); });
+      if (!Object.keys(dados).length) return;
+      try { localStorage.setItem(TRACK_STORAGE, JSON.stringify({ ts: Date.now(), dados })); } catch (e) {}
+      window.__vpsOrigem = dados;
+    })();
+
+    function linhaOrigem() {
+      const d = window.__vpsOrigem || lerOrigem();
+      if (!d) return '';
+      const partes = [];
+      if (d.utm_source) partes.push('origem: ' + d.utm_source);
+      if (d.utm_medium) partes.push('mídia: ' + d.utm_medium);
+      if (d.utm_campaign) partes.push('campanha: ' + d.utm_campaign);
+      if (d.utm_term) partes.push('termo: ' + d.utm_term);
+      if (d.utm_content) partes.push('anúncio: ' + d.utm_content);
+      if (d.gclid) partes.push('gclid: ' + d.gclid);
+      if (d.fbclid) partes.push('fbclid: ' + d.fbclid);
+      return partes.length ? '\n\n[Ref. ' + partes.join(' | ') + ']' : '';
+    }
 
     function irParaWhatsApp(motivo = "") {
       let texto = "Olá! Vim pelo site da vpssistem e quero conhecer as soluções de captação e inteligência comercial.";
       if (motivo) {
         texto = `Olá! Vim pelo site da vpssistem. ${motivo}`;
       }
+      texto += linhaOrigem();
+
+      // Eventos de conversão
+      try { if (window.fbq) fbq('track', 'Contact', { content_name: motivo || 'geral' }); } catch (e) {}
+      try { if (window.gtag) gtag('event', 'generate_lead', { method: 'whatsapp', lead_source: motivo || 'geral' }); } catch (e) {}
+
       const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`;
       window.open(url, '_blank');
     }
